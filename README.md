@@ -3,42 +3,59 @@
 Builds a self-contained Firefox ZIP that ignores enterprise policies set in the
 Windows registry (GPO), with DevTools and the Remote Agent always available.
 
-## Quick start (spare Windows laptop)
+## Quick start: fully automated (spare Windows laptop)
 
-One-time prerequisites:
-1. Install [MozillaBuild](https://wiki.mozilla.org/MozillaBuild) (default `C:\mozilla-build`).
-2. Install [Git for Windows](https://git-scm.com/download/win).
-3. Have about 50 GB free on `C:` and preferably 16 GB+ RAM.
+On a Windows 10/11 x64 PC with about 50 GB free on `C:`, open **PowerShell** and run:
 
-Then open `C:\mozilla-build\start-shell.bat` and run:
-
-```sh
-cd /c
-git clone https://github.com/Jarkius/my-firefox.git
-cd my-firefox
-./build-portable.sh
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Jarkius/my-firefox/main/build.ps1)))
 ```
 
-The first run clones the Firefox source to `C:\mozilla-source\firefox`, installs
-the toolchains (`mach bootstrap`), and compiles everything. Expect several hours.
-The result is `dist\FirefoxPortable-<version>-win64.zip`.
+Or, if you already cloned or downloaded this repo, double-click **`build.cmd`**.
 
-Extract it anywhere and run `firefox\launch.bat`.
+That's it. `build.ps1` then does everything unattended:
+
+1. Checks the machine (64-bit, disk space, RAM, warns if on battery).
+2. Installs **Git for Windows** and **MozillaBuild** if they're missing. You
+   approve one UAC prompt for each; nothing else needs input.
+3. Clones this repo to `C:\my-firefox` (only when run via the one-liner).
+4. Runs `build-portable.sh` in the MozillaBuild shell: clones the Firefox
+   source to `C:\mozilla-source\firefox`, runs `mach bootstrap`, patches the
+   source, then builds, packages, assembles and verifies.
+5. Extracts the result to `C:\FirefoxPortable\firefox` and adds a
+   **Firefox Portable** shortcut to the desktop.
+
+The PC is kept awake for the whole build, and output goes to `logs\build-*.log`.
+The first run takes several hours. It is safe to re-run after a failure:
+the source checkout, toolchains and build output are reused. A rebuild keeps
+your existing portable profile (bookmarks, logins).
+
+Tip: excluding `C:\mozilla-source` and `C:\mozilla-build` from Microsoft
+Defender real-time scanning makes the build much faster. The script does not
+change security settings for you.
 
 ### Options
 
+Pass them to `build.cmd` / `build.ps1`, e.g. `build.cmd -Policy devtools -Ref release`.
+With the one-liner, append them after the closing parenthesis.
+
 | Option | Meaning |
 |---|---|
-| `--policy all` (default) | Ignore all registry/GPO policies, and ignore `DisableDeveloperTools` from any source. |
-| `--policy devtools` | Keep registry/GPO policies (proxy, certificates, etc.); only ignore `DisableDeveloperTools`. |
-| `--ref <branch/tag>` | Firefox version to build, e.g. `release` or `FIREFOX_150_0_RELEASE`. Default `main` (Nightly). |
-| `--update` | Fetch `--ref` again into an existing checkout (discards local source edits). |
-| `--skip-bootstrap` | Skip `mach bootstrap` on later runs. |
-| `--clobber` | Full rebuild from scratch. |
-| `--src DIR`, `--out DIR` | Source checkout and output locations. |
+| `-Policy all` (default) | Ignore all registry/GPO policies, and ignore `DisableDeveloperTools` from any source. |
+| `-Policy devtools` | Keep registry/GPO policies (proxy, certificates, etc.); only ignore `DisableDeveloperTools`. |
+| `-Ref <branch/tag>` | Firefox version, e.g. `release` or `FIREFOX_150_0_RELEASE`. Default `main` (Nightly). |
+| `-Update` | Fetch `-Ref` again into the existing source checkout. |
+| `-Clobber` | Full rebuild from scratch. |
+| `-InstallDir DIR` | Where to extract the result (default `C:\FirefoxPortable`). |
+| `-NoInstall` | Only produce the ZIP in `dist\`; no extraction or shortcut. |
+| `-SrcDir DIR` | Firefox source checkout (default `C:\mozilla-source\firefox`; no spaces). |
+| `-Force` | Continue even when the free-space check fails. |
 
-Later rebuilds reuse the checkout and the object directory, so they are much faster:
-`./build-portable.sh --skip-bootstrap`.
+### Manual mode
+
+Inside the MozillaBuild shell (`C:\mozilla-build\start-shell.bat`) you can run
+the build step directly: `./build-portable.sh --help`. It takes the same options
+in lowercase form (`--policy`, `--ref`, `--update`, `--clobber`, `--skip-bootstrap`).
 
 ## What the script changes
 
@@ -65,7 +82,8 @@ of building an unpatched browser. After packaging, the script opens the
 
 | File | Purpose |
 |---|---|
-| `build-portable.sh` | End-to-end build script (run in the MozillaBuild shell). |
+| `build.cmd` / `build.ps1` | Fully automated entry point: prerequisites, build, install, shortcut. |
+| `build-portable.sh` | The build itself (run in the MozillaBuild shell; called by `build.ps1`). |
 | `tools/customize.py` | Source patches, portable ZIP assembly, verification. |
 | `mozconfig` / `mozconfig.optionB` | Build config for `--policy all` / `--policy devtools`. |
 | `launch.bat` | Starts Firefox with `-no-remote -profile <folder>\profile --remote-debugging-port=9222`. |

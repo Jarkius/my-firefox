@@ -61,6 +61,11 @@ esac
 command -v git >/dev/null || { echo "git not found: install Git for Windows and reopen the MozillaBuild shell." >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 not found: is this the MozillaBuild shell?" >&2; exit 1; }
 
+# Accept Windows paths (C:\foo) as well as MSYS paths (/c/foo).
+SRC="$(cygpath -u "$SRC")"
+OUT="$(cygpath -u "$OUT")"
+win() { cygpath -w "$1"; }   # for MozillaBuild's native Windows python3
+
 PATCHED_FILES=(
   toolkit/components/enterprisepolicies/EnterprisePoliciesParent.sys.mjs
   browser/components/enterprisepolicies/Policies.sys.mjs
@@ -95,7 +100,7 @@ fi
 cat "$SRC/mozconfig"
 
 step "Patch source"
-python3 "$HERE/tools/customize.py" patch --src "$SRC" --policy "$POLICY"
+python3 "$(win "$HERE/tools/customize.py")" patch --src "$(win "$SRC")" --policy "$POLICY"
 git --no-pager diff --stat
 
 if [ "$CLOBBER" = 1 ]; then
@@ -110,10 +115,10 @@ step "Package"
 ./mach package
 
 step "Assemble portable ZIP"
-python3 "$HERE/tools/customize.py" assemble \
-  --objdir "$SRC/obj-portable" \
-  --launcher "$HERE/launch.bat" \
-  --out "$OUT" \
+python3 "$(win "$HERE/tools/customize.py")" assemble \
+  --objdir "$(win "$SRC/obj-portable")" \
+  --launcher "$(win "$HERE/launch.bat")" \
+  --out "$(win "$OUT")" \
   --policy "$POLICY"
 
 step "Done"
