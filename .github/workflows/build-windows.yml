@@ -1,0 +1,73 @@
+name: Build portable Firefox (Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label (use a large/self-hosted Windows runner; a full build needs ~40+ GB disk)
+        default: windows-latest
+      policy_option:
+        description: "Policy bypass: A = --disable-system-policies, B = patch DisableDeveloperTools only"
+        type: choice
+        options: [A, B]
+        default: A
+      firefox_ref:
+        description: Firefox branch/tag to build
+        default: main
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout build configs
+        uses: actions/checkout@v4
+
+      - name: Install MozillaBuild
+        run: |
+          Invoke-WebRequest https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe -OutFile mb.exe
+          Start-Process .\mb.exe -ArgumentList '/S' -Wait
+          if (-not (Test-Path C:\mozilla-build\msys2\usr\bin\bash.exe)) { throw 'MozillaBuild install failed' }
+
+      - name: Clone Firefox source (shallow)
+        run: |
+          git clone --depth 1 --branch "${{ inputs.firefox_ref }}" https://github.com/mozilla-firefox/firefox.git C:\mozilla-source\firefox
+
+      - name: Apply mozconfig / policy patch
+        run: |
+          $src = 'C:\mozilla-source\firefox'
+          if ('${{ inputs.policy_option }}' -eq 'A') {
+            Copy-Item mozconfig "$src\mozconfig"
+          } else {
+            Copy-Item mozconfig.optionB "$src\mozconfig"
+            $f = "$src\browser\components\enterprisepolicies\Policies.sys.mjs"
+            $t = Get-Content $f -Raw
+            $n = [regex]::Replace($t, '(DisableDeveloperTools:\s*\{\s*onBeforeAddons\(manager, param\)\s*\{).*?(\n\s*\},\s*\n\s*\},)',
+              '$1 /* ignored in this private build */ $2', 'Singleline')
+            if ($n -eq $t) { throw 'DisableDeveloperTools block not found; patch it manually' }
+            Set-Content $f $n
+          }
+
+      - name: Bootstrap, build, package (MozillaBuild shell)
+        run: |
+          $env:MSYSTEM = 'MINGW64'
+          $env:MOZILLABUILD = 'C:\mozilla-build'
+          $cmd = 'cd /c/mozilla-source/firefox && ./mach --no-interactive bootstrap --application-choice=browser && ./mach build && ./mach package'
+          & C:\mozilla-build\msys2\usr\bin\bash.exe -lc $cmd
+          if ($LASTEXITCODE -ne 0) { throw "build failed ($LASTEXITCODE)" }
+
+      - name: Assemble portable ZIP
+        run: |
+          $zip = Get-ChildItem C:\mozilla-source\firefox\obj-portable\dist\firefox-*.win64.zip | Select-Object -First 1
+          Expand-Archive $zip.FullName -DestinationPath portable
+          Copy-Item launch.bat portable\firefox\launch.bat
+          New-Item -ItemType Directory portable\firefox\profile | Out-Null
+          Compress-Archive portable\firefox out-firefox-portable.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firefox-portable-win64
+          path: out-firefox-portable.zip

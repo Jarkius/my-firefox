@@ -45,3 +45,9 @@ Extract the ZIP (e.g. `D:\Apps\FirefoxPortable\`), put `launch.bat` next to
 - Recent Firefox (~141+) removed CDP; `--remote-debugging-port` now serves
   WebDriver BiDi, so `http://127.0.0.1:9222/json/version` may not respond.
   Use a BiDi/WebSocket client instead.
+
+## CI
+`.github/workflows/build-windows.yml` (manual `workflow_dispatch`) runs steps 1-4 on a
+Windows runner and uploads `firefox-portable-win64`. It is untested. Standard
+`windows-latest` runners have too little disk/time for a full build; pass a large or
+self-hosted runner label via the `runner` input.
