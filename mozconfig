@@ -1,11 +1,10 @@
-# Portable Firefox build (Option A: disable system-level policies).
-# NOTE: verify --disable-system-policies exists in your tree
-#   (grep -rn "policies" build/moz.configure browser/moz.configure).
-# If it does not, use Option B from the README.
-
-# Must be a full build, not --enable-artifact-builds.
+# Portable Firefox, policy mode "all" (used by build-portable.sh --policy all).
+# --disable-system-policies (toolkit/moz.configure) sets MOZ_SYSTEM_POLICIES
+# to false, so the Windows registry/GPO provider is never built in.
+# build-portable.sh also patches that code path out as a second safeguard.
 ac_add_options --disable-system-policies
 
+# Full build: do NOT use --enable-artifact-builds (it ignores the flag above).
 ac_add_options --enable-release
 ac_add_options --disable-updater
 ac_add_options --disable-maintenance-service
