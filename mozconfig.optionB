@@ -1,0 +1,6 @@
+# Portable Firefox, policy mode "devtools" (build-portable.sh --policy devtools).
+# Registry/GPO policies stay active; only DisableDeveloperTools is patched out.
+ac_add_options --enable-release
+ac_add_options --disable-updater
+ac_add_options --disable-maintenance-service
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-portable

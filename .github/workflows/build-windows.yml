@@ -1,0 +1,52 @@
+name: Build portable Firefox (Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label (use a large/self-hosted Windows runner; a full build needs ~50 GB disk)
+        default: windows-latest
+      policy:
+        description: "all = ignore registry/GPO policies; devtools = only ignore DisableDeveloperTools"
+        type: choice
+        options: [all, devtools]
+        default: all
+      firefox_ref:
+        description: Firefox branch/tag to build
+        default: main
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout build scripts
+        uses: actions/checkout@v4
+
+      - name: Install MozillaBuild
+        run: |
+          if (-not (Test-Path C:\mozilla-build\msys2\usr\bin\bash.exe)) {
+            Invoke-WebRequest https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe -OutFile mb.exe
+            Start-Process .\mb.exe -ArgumentList '/S' -Wait
+          }
+          if (-not (Test-Path C:\mozilla-build\msys2\usr\bin\bash.exe)) { throw 'MozillaBuild install failed' }
+
+      - name: Build portable Firefox
+        env:
+          MSYSTEM: MINGW64
+          MOZILLABUILD: 'C:\mozilla-build'
+          MSYS2_PATH_TYPE: inherit
+          CHERE_INVOKING: '1'
+          POLICY: ${{ inputs.policy }}
+          FIREFOX_REF: ${{ inputs.firefox_ref }}
+        run: |
+          & C:\mozilla-build\msys2\usr\bin\bash.exe -lc './build-portable.sh --policy "$POLICY" --ref "$FIREFOX_REF" --out dist'
+          if ($LASTEXITCODE -ne 0) { throw "build failed ($LASTEXITCODE)" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firefox-portable-win64-${{ inputs.policy }}
+          path: dist/*.zip
