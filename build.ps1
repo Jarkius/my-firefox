@@ -166,11 +166,18 @@ $env:FF_REPO = $repo
 $env:FF_LOG = $log
 $env:FF_ARGS = ($shArgs | ForEach-Object { "'" + ($_ -replace "'", "'\''") + "'" }) -join ' '
 
-$cmd = 'set -o pipefail; cd "$(cygpath -u "$FF_REPO")" && ' +
-       'eval "./build-portable.sh $FF_ARGS" 2>&1 | tee -a "$(cygpath -u "$FF_LOG")"'
+# Run a script file instead of `bash -lc "<string>"`: Windows PowerShell 5.1 strips the
+# embedded double quotes from native-command arguments, which breaks the command.
+$runner = Join-Path $logDir 'run-build.sh'
+$runnerText = @(
+  'set -o pipefail',
+  'cd "$(cygpath -u "$FF_REPO")"',
+  'eval "./build-portable.sh $FF_ARGS" 2>&1 | tee -a "$(cygpath -u "$FF_LOG")"'
+) -join "`n"
+[IO.File]::WriteAllText($runner, $runnerText + "`n", (New-Object Text.UTF8Encoding $false))
 Set-KeepAwake $true
 try {
-  & $bash -lc $cmd
+  & $bash -l ($runner -replace '\\', '/')
   $code = $LASTEXITCODE
 } finally {
   Set-KeepAwake $false
