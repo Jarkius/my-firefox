@@ -87,6 +87,7 @@ of building an unpatched browser. After packaging, the script opens the
 | `tools/customize.py` | Source patches, portable ZIP assembly, verification. |
 | `mozconfig` / `mozconfig.optionB` | Build config for `--policy all` / `--policy devtools`. |
 | `launch.bat` | Starts Firefox with `-no-remote -profile <folder>\profile --remote-debugging-port=9222`. |
+| `HANDOFF.md` | Instructions and current status for an agent continuing the Windows work. |
 | `.github/workflows/build-windows.yml` | Same build on GitHub Actions (needs a big runner). |
 
 ## Verify on the laptop
