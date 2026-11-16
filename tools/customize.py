@@ -142,6 +142,22 @@ def find_package(objdir):
     return max(zips, key=os.path.getmtime)
 
 
+ENTERPRISE_PREFS = """\
+// Portable build: enterprise SSO defaults (registry/GPO can't set these here).
+// Trust enterprise root CAs from the Windows certificate store.
+pref("security.enterprise_roots.enabled", true);
+// Use the signed-in Windows (Entra ID / work or school) account for SSO.
+pref("network.http.windows-sso.enabled", true);
+"""
+
+
+def write_enterprise_prefs(app):
+    d = os.path.join(app, "defaults", "pref")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "enterprise-sso.js"), "w", newline="\n") as f:
+        f.write(ENTERPRISE_PREFS)
+
+
 def cmd_assemble(args):
     pkg = find_package(args.objdir)
     name = os.path.basename(pkg)
@@ -160,6 +176,7 @@ def cmd_assemble(args):
         die("firefox.exe not found in package")
     shutil.copy(args.launcher, os.path.join(app, "launch.bat"))
     os.makedirs(os.path.join(app, "profile"), exist_ok=True)
+    write_enterprise_prefs(app)
     out_zip = shutil.make_archive(stage, "zip", stage, "firefox")
     print(f"Portable folder: {app}")
     print(f"Portable ZIP:    {out_zip}")
@@ -211,6 +228,13 @@ def verify_zip(path, policy):
         else:
             print("  !! DisableDeveloperTools patch missing")
             ok = False
+    with zipfile.ZipFile(path) as z:
+        has_prefs = "firefox/defaults/pref/enterprise-sso.js" in z.namelist()
+    if has_prefs:
+        print("  ok enterprise SSO / cert store prefs present")
+    else:
+        print("  !! enterprise-sso.js missing")
+        ok = False
     if not ok:
         die("verification failed")
 
