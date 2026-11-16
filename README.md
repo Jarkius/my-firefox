@@ -112,7 +112,8 @@ in lowercase form (`--policy`, `--ref`, `--update`, `--clobber`, `--skip-bootstr
 
 - **Both modes**: assembly adds `defaults\pref\enterprise-sso.js`, which turns on
   `security.enterprise_roots.enabled` (trust enterprise CAs from the Windows
-  certificate store) and `network.http.windows-sso.enabled` (Windows work/school
+  certificate store), `network.http.microsoft-entra-sso.enabled` (Microsoft Entra ID SSO) and
+  `network.http.windows-sso.enabled` (Windows work/school
   account SSO). Kerberos/NTLM to intranet sites still needs
   `network.negotiate-auth.trusted-uris` and
   `network.automatic-ntlm-auth.trusted-uris` set for your domains.

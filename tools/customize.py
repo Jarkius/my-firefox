@@ -148,6 +148,8 @@ ENTERPRISE_PREFS = """\
 pref("security.enterprise_roots.enabled", true);
 // Use the signed-in Windows (Entra ID / work or school) account for SSO.
 pref("network.http.windows-sso.enabled", true);
+// Microsoft Entra ID single sign-on via the Windows account manager.
+pref("network.http.microsoft-entra-sso.enabled", true);
 """
 
 
