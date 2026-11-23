@@ -51,6 +51,42 @@ With the one-liner, append them after the closing parenthesis.
 | `-SrcDir DIR` | Firefox source checkout (default `C:\mozilla-source\firefox`; no spaces). |
 | `-Force` | Continue even when the free-space check fails. |
 
+### Re-running the build
+
+Pick the lightest option that covers what you changed. Run these from the repo
+folder (e.g. `C:\workspace\my-firefox`).
+
+| Situation | What to run | Time |
+|---|---|---|
+| Re-run after a failure or interruption | `build.cmd` (same options as before). Finished steps are reused. | minutes to hours |
+| Rebuild with different options (`-Policy`, `-Ref`) | `build.cmd -Policy devtools -Ref release`, add `-Update` if `-Ref` changed | incremental build |
+| Pull a newer Firefox source | `build.cmd -Update` | incremental build |
+| Clean rebuild (odd build errors) | `build.cmd -Clobber` | several hours |
+| Only changed `tools/customize.py`, `launch.bat` or the default prefs | Re-assemble only, see below | seconds |
+
+Each run writes a log to `logs\build-<date>-<time>.log`. Look at the last lines
+for `==> Done` to confirm it finished, or for the failing step.
+
+**Re-assemble only (no compile).** This repackages the existing build output
+into the portable ZIP and re-runs the checks. Use it after editing
+`tools/customize.py`, `launch.bat` or the pref defaults it writes:
+
+```powershell
+python tools\customize.py assemble `
+  --objdir C:\mozilla-source\firefox\obj-portable `
+  --launcher launch.bat --out dist --policy all
+```
+
+If `python` isn't found, use the MozillaBuild shell (`C:\mozilla-build\start-shell.bat`),
+where `python3` works. Pass `--policy devtools` if you built that way. The
+result is `dist\FirefoxPortable-<version>-win64\` and a matching `.zip`.
+`build.cmd` only extracts to `-InstallDir` and refreshes the shortcut; after a
+re-assemble, copy `dist\...\firefox` over it yourself, or run `build.cmd`
+again (the compile is incremental, so it finishes quickly when nothing changed).
+
+**Memory.** `mozconfig` caps `MOZ_PARALLEL_BUILD` at 4. If the build still runs
+out of memory, lower it; if you have plenty of RAM, raise it.
+
 ### Manual mode
 
 Inside the MozillaBuild shell (`C:\mozilla-build\start-shell.bat`) you can run
@@ -73,6 +109,14 @@ in lowercase form (`--policy`, `--ref`, `--update`, `--clobber`, `--skip-bootstr
   replaces the body of `DisableDeveloperTools.onBeforeAddons` with a no-op. That
   policy is also what sets `remote.policy.disabled`, which blocks Marionette and
   the Remote Agent.
+
+- **Both modes**: assembly adds `defaults\pref\enterprise-sso.js`, which turns on
+  `security.enterprise_roots.enabled` (trust enterprise CAs from the Windows
+  certificate store), `network.http.microsoft-entra-sso.enabled` (Microsoft Entra ID SSO) and
+  `network.http.windows-sso.enabled` (Windows work/school
+  account SSO). Kerberos/NTLM to intranet sites still needs
+  `network.negotiate-auth.trusted-uris` and
+  `network.automatic-ntlm-auth.trusted-uris` set for your domains.
 
 Patching stops with an error if the upstream code no longer matches, instead
 of building an unpatched browser. After packaging, the script opens the

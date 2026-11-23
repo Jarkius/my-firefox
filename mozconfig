@@ -9,3 +9,6 @@ ac_add_options --enable-release
 ac_add_options --disable-updater
 ac_add_options --disable-maintenance-service
 mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-portable
+
+# Cap parallel jobs: rustc/clang can use several GB each and exhaust RAM (STATUS_DLL_INIT_FAILED).
+mk_add_options MOZ_PARALLEL_BUILD=4
